@@ -1,51 +1,62 @@
-# Spring Boot Hello World
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
 
-**A simple Spring Boot 2.x app to send hello world message to a user**
+name: Build and deploy JAR app to Azure Web App - kanchi-first-app
 
-## How to Run Application
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
 
-**Start the application using any of the commands mentioned below**
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-> **Note:** First two commands need to run inside the root folder of this project i.e inside the **spring-boot-hello-world** folder
+    steps:
+      - uses: actions/checkout@v4
 
+      - name: Set up Java version
+        uses: actions/setup-java@v1
+        with:
+          java-version: '11'
 
-- **Using maven** <br/>``` mvn spring-boot:run```
+      - name: Build with Maven
+        run: mvn clean install
 
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v3
+        with:
+          name: java-app
+          path: '${{ github.workspace }}/target/*.jar'
 
-- **From jar file**
-  Create a jar file using '**mvn clean install**' command and then execute
-  <br/>```java -jar target/spring-boot-2-hello-world-1.0.2-SNAPSHOT.jar```
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: 'production'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+    permissions:
+      id-token: write #This is required for requesting the JWT
+  
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v3
+        with:
+          name: java-app
+      
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.__clientidsecretname__ }}
+          tenant-id: ${{ secrets.__tenantidsecretname__ }}
+          subscription-id: ${{ secrets.__subscriptionidsecretname__ }}
 
-
-- **Directly from IDE**
-  <br/>```Right click on HelloWorldApplication.java and click on 'Run' option```
-  <br/><br/>
-
-> **Note:** By default spring boot application starts on port number 8080. If port 8080 is occupied in your system then you can change the port number by uncommenting and updating the **server.port** property inside the **application.properties** file that is available inside the **src > main > resources** folder.
-
-<br/>
-
-**Send an HTTP GET request to '/hello' endpoint using any of the two methods**
-
-- **Browser or REST client**
-  <br/>```http://localhost:8080/hello```
-
-
-- **cURL**
-  <br/>```curl --request GET 'http://localhost:8080/hello'```
-
-
-## How to Run Unit Test Cases
-
-**Run the test cases using any of the commands mentioned below**
-
-> **Note:** These commands need to run inside the root folder of this project i.e inside the **spring-boot-hello-world** folder
-
-- **To run all the test cases**
-  <br/>```mvn test```
-
-
-- **To run a particular test class**
-  <br/>```mvn -Dtest=HelloWorldControllerTest test```
-  <br/>or
-  <br/>```mvn -Dtest=HelloWorldApplicationTests test```
+      - name: Deploy to Azure Web App
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: 'kanchi-first-app'
+          slot-name: 'production'
+          package: '*.jar'
+          
